@@ -25,10 +25,20 @@
             background: purple;
             color: #ffffff;
         }
+        .btn {
+            background: #f2dede;
+            padding: 10px;
+            text-decoration: none;
+            color: #000;
+        }
     </style>
 </head>
 <body>
 <h3>{{$user['nickname']}}</h3>
+
+@for($i = 1; $i < 11; $i++)
+    <a class="btn" href="{{ url("/wot/".$user['account_id'])."/".$i }}">{{$i}}</a>
+@endfor
 <ul>
 @foreach($tanks as $tank)
     <li class="{{$tank['class']}}">

@@ -21,7 +21,13 @@ class WotController extends BaseController
         $this->api = new WoTAPI(env("WGAPI"),"eu","en");
     }
 
-    public function index($userId, $tier=10){
+    public function index(){
+        $clanInfo = $this->api->clanInfo("500150211");
+        //dd($clanInfo);
+        return view("clan.detail")->with("clan", array_first($clanInfo['data']));
+    }
+
+    public function stats($userId, $tier=10){
         //$userId = 508431014;
         #dd($api->accountInfo("nickname, statistics.all","","508431014"));
         $expected_tanks = Cache::get('expected_tanks', null);
@@ -31,8 +37,9 @@ class WotController extends BaseController
         }
         $user = Cache::get('user_'.$userId, null);
         if(is_null($user)){
-            $user = $this->api->accountInfo($userId,"nickname, statistics.all");
-            $user = array_first($user['data']);
+            $_user = $this->api->accountInfo($userId,"nickname, statistics.all, ");
+            $user = array_first($_user['data']);
+            array_set($user, "account_id", $userId);
             Cache::put('user_'.$userId, $user, 60*24);
         }
 

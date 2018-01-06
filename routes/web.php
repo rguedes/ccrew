@@ -15,6 +15,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('wot/{userId}/{tier?}', "WotController@index");
+Route::get('wot', "WotController@index");
+Route::get('wot/{userId}/{tier?}', "WotController@stats");
+
 
 
