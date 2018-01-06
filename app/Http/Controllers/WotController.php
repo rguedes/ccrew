@@ -32,7 +32,8 @@ class WotController extends BaseController
         #dd($api->accountInfo("nickname, statistics.all","","508431014"));
         $expected_tanks = Cache::get('expected_tanks', null);
         if(is_null($expected_tanks)){
-            $expected_tanks = Request::send("https://static.modxvm.com/wn8-data-exp/json/wn8exp.json");
+            $json = json_decode(file_get_contents(resource_path('assets/wn8exp.json')), true);
+            $expected_tanks = $json['data'];
             Cache::put('expected_tanks', $expected_tanks, 60*24);
         }
         $user = Cache::get('user_'.$userId, null);
