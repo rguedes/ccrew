@@ -11,8 +11,8 @@
             margin-bottom: 20px;
             margin-right: 10px;
         }
-        li.dead {
-            background: black;
+        li.good {
+            background: blue;
             color: #f2dede;
         }
         li.bad {

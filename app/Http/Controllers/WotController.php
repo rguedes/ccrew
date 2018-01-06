@@ -63,19 +63,19 @@ class WotController extends BaseController
                 $damage = $tank['all']['battles'] != 0 ? round($tank['all']['damage_dealt'] / $tank['all']['battles']) : 0;
                 switch ($damage){
                     case $damage < ($expDamage - ($expDamage*0.5)):
-                        $class = "dead";
-                        break;
-                    case $damage >= ($expDamage - ($expDamage*0.5)) && $damage < ($expDamage - ($expDamage*0.2)):
                         $class = "bad";
                         break;
-                    case $damage >= ($expDamage - ($expDamage*0.2)) && $damage < $expDamage:
+                    case $damage >= ($expDamage - ($expDamage*0.5)) && $damage < ($expDamage - ($expDamage*0.15)):
                         $class = "danger";
                         break;
-                    case $damage >= $expDamage && $damage < ($expDamage + ($expDamage*0.2)):
+                    case $damage >= ($expDamage - ($expDamage*0.15)) && $damage < $expDamage:
                         $class = "warning";
                         break;
-                    case $damage >= ($expDamage + ($expDamage*0.2)) && $damage < ($expDamage + ($expDamage*0.5)):
+                    case $damage >= $expDamage && $damage < ($expDamage + ($expDamage*0.15)):
                         $class = "success";
+                        break;
+                    case $damage >= ($expDamage + ($expDamage*0.15)) && $damage < ($expDamage + ($expDamage*0.5)):
+                        $class = "good";
                         break;
                     case $damage >= ($expDamage + ($expDamage*0.5)):
                         $class = "unicorn";
