@@ -50,6 +50,9 @@ class WotController extends BaseController
             $tanksList = $tanksList['data'];
             $tanksIds = join(",",array_keys($tanksList));
             $personalTanksList = $this->api->tanksStats($userId, $tanksIds);
+            if(count(array_first($personalTanksList['data'])) == 0){
+                return "not_available_tank_tier_".$tier;
+            }
             $list = array_map(function($tank) use ($tanksList, $expected_tanks){
 
                 $exp = array_first(array_filter($expected_tanks['data'], function($value) use ($tank){
@@ -59,7 +62,13 @@ class WotController extends BaseController
 
                 $damage = $tank['all']['battles'] != 0 ? round($tank['all']['damage_dealt'] / $tank['all']['battles']) : 0;
                 switch ($damage){
-                    case $damage < $expDamage:
+                    case $damage < ($expDamage - ($expDamage*0.5)):
+                        $class = "dead";
+                        break;
+                    case $damage >= ($expDamage - ($expDamage*0.5)) && $damage < ($expDamage - ($expDamage*0.2)):
+                        $class = "bad";
+                        break;
+                    case $damage >= ($expDamage - ($expDamage*0.2)) && $damage < $expDamage:
                         $class = "danger";
                         break;
                     case $damage >= $expDamage && $damage < ($expDamage + ($expDamage*0.2)):

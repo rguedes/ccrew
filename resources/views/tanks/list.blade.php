@@ -11,8 +11,16 @@
             margin-bottom: 20px;
             margin-right: 10px;
         }
+        li.dead {
+            background: black;
+            color: #f2dede;
+        }
+        li.bad {
+            background: grey;
+        }
         li.success {
             background: green;
+            color: #f2dede;
         }
         li.warning {
             background: orange;
