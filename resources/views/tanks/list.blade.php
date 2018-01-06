@@ -34,7 +34,7 @@
     </style>
 </head>
 <body>
-<h3>{{$user['nickname']}}</h3>
+<a href="{{url("wot")}}">Back to clan list</a><h3>{{$user['nickname']}}</h3>
 
 @for($i = 1; $i < 11; $i++)
     <a class="btn" href="{{ url("/wot/".$user['account_id'])."/".$i }}">{{$i}}</a>

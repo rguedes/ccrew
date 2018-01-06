@@ -37,7 +37,7 @@ class WotController extends BaseController
         }
         $user = Cache::get('user_'.$userId, null);
         if(is_null($user)){
-            $_user = $this->api->accountInfo($userId,"nickname, statistics.all, ");
+            $_user = $this->api->accountInfo($userId,"nickname, statistics.all, clan_id");
             $user = array_first($_user['data']);
             array_set($user, "account_id", $userId);
             Cache::put('user_'.$userId, $user, 60*24);
