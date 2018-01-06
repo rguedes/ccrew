@@ -11,25 +11,25 @@
             margin-bottom: 20px;
             margin-right: 10px;
         }
-        li.good {
+        .good {
             background: blue;
             color: #f2dede;
         }
-        li.bad {
-            background: grey;
+        .grey {
+            background: #c5c5c5;
         }
-        li.success {
+        .success {
             background: green;
             color: #f2dede;
         }
-        li.warning {
+        .warning {
             background: orange;
         }
-        li.danger {
+        .danger {
             background: red;
             color: #ffffff;
         }
-        li.unicorn {
+        .unicorn {
             background: purple;
             color: #ffffff;
         }
@@ -47,6 +47,7 @@
 @for($i = 1; $i < 11; $i++)
     <a class="btn" href="{{ url("/wot/".$user['account_id'])."/".$i }}">{{$i}}</a>
 @endfor
+<h4>Tanks</h4>
 <ul>
 @foreach($tanks as $tank)
     <li class="{{$tank['class']}}">

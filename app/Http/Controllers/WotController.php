@@ -30,6 +30,9 @@ class WotController extends BaseController
     }
 
     public function stats($userId, $tier=10){
+
+        $range = ["bad","danger","warning","success","good","unicorn"];
+
         //$userId = 508431014;
         #dd($api->accountInfo("nickname, statistics.all","","508431014"));
         $expected_tanks = Cache::get('expected_tanks', null);
@@ -53,7 +56,7 @@ class WotController extends BaseController
             if(count(array_first($personalTanksList['data'])) == 0){
                 return "not_available_tank_tier_".$tier;
             }
-            $list = array_map(function($tank) use ($tanksList, $expected_tanks){
+            $list = array_map(function($tank) use ($tanksList, $expected_tanks,$range){
 
                 $exp = array_first(array_filter($expected_tanks['data'], function($value) use ($tank){
                     return $tank['tank_id'] == $value['IDNum'];
@@ -61,29 +64,38 @@ class WotController extends BaseController
                 $expDamage = $exp['expDamage'];
 
                 $damage = $tank['all']['battles'] != 0 ? round($tank['all']['damage_dealt'] / $tank['all']['battles']) : 0;
+                $winrate = $tank['all']['battles'] != 0 ? round($tank['all']['wins'] / $tank['all']['battles'] *100 ) : 0;
                 switch ($damage){
                     case $damage < ($expDamage - ($expDamage*0.5)):
-                        $class = "bad";
+                        $class = 0;
                         break;
                     case $damage >= ($expDamage - ($expDamage*0.5)) && $damage < ($expDamage - ($expDamage*0.15)):
-                        $class = "danger";
+                        $class = 1;
                         break;
                     case $damage >= ($expDamage - ($expDamage*0.15)) && $damage < $expDamage:
-                        $class = "warning";
+                        $class = 2;
                         break;
                     case $damage >= $expDamage && $damage < ($expDamage + ($expDamage*0.15)):
-                        $class = "success";
+                        $class = 3;
                         break;
                     case $damage >= ($expDamage + ($expDamage*0.15)) && $damage < ($expDamage + ($expDamage*0.5)):
-                        $class = "good";
+                        $class = 4;
                         break;
                     case $damage >= ($expDamage + ($expDamage*0.5)):
-                        $class = "unicorn";
+                        $class = 5;
                         break;
                     default:
                         $class = "";
                         break;
                 }
+
+                if($class == 3 && $winrate < 50 || ($class == 4 && $winrate < 55) || ($class == 5 && $winrate < 60)){
+                    $class-=1;
+                }
+                $class = $range[$class];
+                if($tank['all']['battles'] < 50)
+                    $class = "grey";
+
                 return array_merge($tank, ["class"=>$class], ["tank"=>$tanksList[$tank['tank_id']]]);
             }, array_first($personalTanksList['data']));
 
