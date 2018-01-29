@@ -23,7 +23,7 @@ class WotController extends BaseController
 
     public function index(){
         $clanInfo = $this->api->clanInfo("500150211");
-        //dd($clanInfo);
+        dd($clanInfo);
         $clan = array_first($clanInfo['data']);
         $clan['members'] = collect($clan['members'])->sortBy('account_name')->toArray();
         return view("clan.detail")->with("clan", $clan);
@@ -32,6 +32,7 @@ class WotController extends BaseController
     public function stats($userId, $tier=10){
 
         $range = ["bad","danger","warning","success","good","unicorn"];
+        $wn8 = new \App\Wn8($this->api, $userId, true);
 
         //$userId = 508431014;
         #dd($api->accountInfo("nickname, statistics.all","","508431014"));
@@ -62,6 +63,21 @@ class WotController extends BaseController
                     return $tank['tank_id'] == $value['IDNum'];
                 }));
                 $expDamage = $exp['expDamage'];
+
+                // Calculate WN8
+                $rDAMAGE = $tank['all']['damage_dealt'] / ($exp['expDamage']*$tank['all']['battles']);
+                $rSPOT = $tank['all']['spotted'] / ($exp['expSpot']*$tank['all']['battles']);
+                $rFRAG = $tank['all']['frags'] / ($exp['expFrag']*$tank['all']['battles']);
+                $rDEF = $tank['all']['dropped_capture_points'] / ($exp['expDef']*$tank['all']['battles']);
+                $rWIN = $tank['all']['wins'] / ($exp['expWinRate']*$tank['all']['battles']);
+
+                $rWINc    = max(0,                      ($rWIN    - 0.71) / (1 - 0.71) );
+                $rDAMAGEc = max(0,                      ($rDAMAGE - 0.22) / (1 - 0.22) );
+                $rFRAGc   = max(0, min($rDAMAGEc + 0.2, ($rFRAG   - 0.12) / (1 - 0.12)));
+                $rSPOTc   = max(0, min($rDAMAGEc + 0.1, ($rSPOT   - 0.38) / (1 - 0.38)));
+                $rDEFc    = max(0, min($rDAMAGEc + 0.1, ($rDEF    - 0.10) / (1 - 0.10)));
+
+                $wn8 = round(980*$rDAMAGEc + 210*$rDAMAGEc*$rFRAGc + 155*$rFRAGc*$rSPOTc + 75*$rDEFc*$rFRAGc + 145*MIN(1.8,$rWINc), 0);
 
                 $damage = $tank['all']['battles'] != 0 ? round($tank['all']['damage_dealt'] / $tank['all']['battles']) : 0;
                 $winrate = $tank['all']['battles'] != 0 ? round($tank['all']['wins'] / $tank['all']['battles'] *100 ) : 0;
@@ -96,10 +112,10 @@ class WotController extends BaseController
                 if($tank['all']['battles'] < 50)
                     $class = "grey";
 
-                return array_merge($tank, ["class"=>$class], ["tank"=>$tanksList[$tank['tank_id']]]);
+                return array_merge($tank, ["class"=>$class], ["tank"=>$tanksList[$tank['tank_id']]], ["wn8"=>$wn8] );
             }, array_first($personalTanksList['data']));
 
-            return view("tanks.list")->with('tanks', $list)->with("user", $user);
+            return view("tanks.list")->with('tanks', $list)->with("user", $user)->with("wn8", $wn8->getWn8());
         }else
             return "fail";
     }

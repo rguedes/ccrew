@@ -11,5 +11,8 @@
     <br/>
     <label>WR</label>
     <span>{{ number_format(($tank['all']['wins'] / $tank['all']['battles'])*100, 2) }}%</span>
+    <br/>
+    <label>WN8</label>
+    <span>{{ $tank['wn8'] }}</span>
     @endif
 </div>
