@@ -189,15 +189,17 @@ class Wn8 {
             if( $this->accurate_calculation AND !empty($missing) ) {
 
                 // Get missing tanks stats from API server
-                $missing_tanks = $this->_arrayToObject($this->api->tanksStats($account_id, implode(',',$missing), 'tank_id,all.battles,all.frags,all.damage_dealt,all.dropped_capture_points,all.spotted,all.wins')['data'][$account_id]);
+                $missing_tanks = $this->_arrayToObject($this->api->tanksStats($account_id, implode(',',$missing), 'tank_id,all.battles,all.frags,all.damage_dealt,all.dropped_capture_points,all.spotted,all.wins'));
 
-                // Reduce account summary data
-                foreach( $missing_tanks AS $tank ) {
-                    $summary->damage_dealt -= $tank->all->damage_dealt;
-                    $summary->spotted -= $tank->all->spotted;
-                    $summary->frags -= $tank->all->frags;
-                    $summary->dropped_capture_points -= $tank->all->dropped_capture_points;
-                    $summary->wins -= $tank->all->wins;
+                if(isset($missing['data'][$account_id])){
+                    // Reduce account summary data
+                    foreach( $missing_tanks AS $tank ) {
+                        $summary->damage_dealt -= $tank->all->damage_dealt;
+                        $summary->spotted -= $tank->all->spotted;
+                        $summary->frags -= $tank->all->frags;
+                        $summary->dropped_capture_points -= $tank->all->dropped_capture_points;
+                        $summary->wins -= $tank->all->wins;
+                    }
                 }
             }
 
