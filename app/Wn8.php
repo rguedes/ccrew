@@ -129,7 +129,7 @@ class Wn8 {
      */
     public function getWN8() {
 
-        //$this->wn8 = Cache::get('wn8_'.$this->account_id, null);
+        $this->wn8 = Cache::get('wn8_'.$this->account_id, null);
         // If WN8 was not calculated yet
         if( is_null($this->wn8) ) {
 
