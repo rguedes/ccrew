@@ -23,7 +23,6 @@ class WotController extends BaseController
 
     public function index(){
         $clanInfo = $this->api->clanInfo("500150211");
-        dd($clanInfo);
         $clan = array_first($clanInfo['data']);
         $clan['members'] = collect($clan['members'])->sortBy('account_name')->toArray();
         return view("clan.detail")->with("clan", $clan);
