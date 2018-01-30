@@ -148,8 +148,8 @@ class WotController extends BaseController
         $membersInfo = $this->api->accountInfo(join(", ", collect($clan['members'])->pluck("account_id")->toArray()  ));
         $membersTanks = $this->api->accountTanks(join(", ", collect($clan['members'])->pluck("account_id")->toArray()  ));
 
-        $members = collect($membersInfo['data'])
-          ->map(function ($member) use ($membersTanks) {
+        collect($membersInfo['data'])
+          ->each(function ($member) use ($membersTanks) {
               if($member['last_battle_time'] < (time() - (24 * 60 * 60) ))
                   return ["clan_id"=>$member['clan_id'],"account_id"=>$member['account_id'], "date"=>date("Y-m-d 00:00:00"), "info"=>$member, "tanks"=>[]];
             $tanksStats = $this->api->tanksStats($member['account_id'])['data'][$member['account_id']];
@@ -157,13 +157,10 @@ class WotController extends BaseController
                 $stats = collect($tanksStats)->where("tank_id", $tank['tank_id'])->first();
                 return ['data'=>$tank, "stats"=>$stats];
             })->toArray();
-            return ["clan_id"=>$member['clan_id'],"account_id"=>$member['account_id'], "date"=>date("Y-m-d 00:00:00"), "info"=>$member, "tanks"=>$tanksStats];
-        });
-        $members->each(function($data){
+            $data = ["clan_id"=>$member['clan_id'],"account_id"=>$member['account_id'], "date"=>date("Y-m-d 00:00:00"), "info"=>$member, "tanks"=>$tanksStats];
             Stats::create($data);
         });
         Cache::put("daily_stats_".$clanId, time(), 60*24);
-        return $members->toArray();
     }
 
 }
