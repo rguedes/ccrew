@@ -112,8 +112,8 @@ class WotController extends BaseController
                     $class-=1;
                 }
                 $class = $range[$class];
-                if($tank['all']['battles'] < 50)
-                    $class = "grey";
+                /*if($tank['all']['battles'] < 50)
+                    $class = "grey";*/
 
                 return array_merge($tank, ["class"=>$class], ["tank"=>$tanksList[$tank['tank_id']]], ["wn8"=>$wn8] );
             }, array_first($personalTanksList['data']));
