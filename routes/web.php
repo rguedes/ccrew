@@ -16,7 +16,10 @@ Route::get('/', function () {
 });
 
 Route::get('wot', "WotController@index");
+Route::get('wot/daily', "WotController@get_daily_stats");
+
 Route::get('wot/{userId}/{tier?}', "WotController@stats");
+
 
 
 
