@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use FontLib\Table\Type\head;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Foundation\Validation\ValidatesRequests;
@@ -10,6 +11,9 @@ use RiftBit\WoTAPI\Api as WoTAPI;
 use RiftBit\WoTAPI\lib\tools\Request;
 use Illuminate\Support\Facades\Cache;
 use App\Stats;
+use GuzzleHttp\Client;
+use PDF;
+use Excel;
 
 class WotController extends BaseController
 {
@@ -161,6 +165,228 @@ class WotController extends BaseController
             Stats::create($data);
         });
         Cache::put("daily_stats_".$clanId, time(), 60*24);
+    }
+
+    public function getStatsWotzilla(){
+        $clans = ['GOP', 'ELCC', 'CCREW', 'RYNO', 'OE-PT', 'KINAS', 'TI7AN', 'UP-EU', 'S-D-G', 'DT-PT'];
+        $output = [];
+        foreach ($clans as $clan){
+            $stats = resource_path('assets/stats/'.$clan.".csv");
+            Excel::load($stats, function($reader) use (&$output, $clan) {
+                $data = $reader->get(['nickname', 'wn8', 'battles_3', 'wn11', 'last_battle']);
+                $data = $data->map(function ($data) use ($clan){
+                    return array_merge($data->toArray(), ['clan_id'=>$clan]);
+                });
+                $output = array_merge($output, $data->toArray());
+            });
+        }
+
+        $output = collect($output)
+            ->reject(function($data){
+                return $data['wn11'] < 2000 || $data['battles_3'] < 150;
+            })
+            ->sortByDesc(function($data){
+                return (int)$data['wn11'];
+            })
+            ->values()
+        ;
+        $countByClan = $output->groupBy('clan_id')->map(function($clan, $key){
+            return $clan->count();
+        })->sort()->reverse();
+
+        $countByWn8 = $output->groupBy(function($data){
+            if($data['wn11'] > 2900){
+                return "super_unicorn";
+            }elseif ($data['wn11'] > 2450){
+                return "unicorn";
+            }
+            return "great";
+        })->map(function($clan, $key){
+            return $clan->count();
+        })->sort();
+        $pdf = PDF::loadView('stats.wotzilla', compact('output', 'countByClan', 'countByWn8'));
+        return $pdf->download('stats.pdf');
+    }
+
+    public function get30D(){
+
+        $expected_tanks = Cache::get('expected_tanks', null);
+        if(is_null($expected_tanks)){
+            $expected_tanks = json_decode(file_get_contents(resource_path('assets/wn8exp.json')), true);
+            Cache::put('expected_tanks', $expected_tanks, 60*24);
+        }
+        //First 100
+        $tanksListRequest = $this->api->encyclopediaVehicles("images, tag, tank_id, type, short_name, name, tier, nation", "8,10");
+        $tanksList = $tanksListRequest['data'];
+        //Get next pages
+        if($tanksListRequest['meta']['page_total']>1){
+            for($i=2; $i<=$tanksListRequest['meta']['page_total']; $i++){
+                $tanksListRequest = $this->api->encyclopediaVehicles("images, tag, tank_id, type, short_name, name, tier, nation", "8,10", "", "",  "", $i);
+                $tanksList = array_merge($tanksList, $tanksListRequest['data']);
+            }
+        }
+
+        $stats = Stats::whereBetween("date", ["2018-01-01 00:00:00", "2018-01-31 00:00:00"])->orderBy("date")->get();
+
+        $diff = [];
+        foreach ($stats->groupBy('account_id') as $key => $data){
+            $first = $data->first()->toArray();
+            $last = $data->last()->toArray();
+            $tanks = [];
+            foreach ($data as $id => $day){
+                //No battles go Next day
+                if($day['info']['statistics']['all']['battles']==0){
+                    continue;
+                }
+
+                foreach ($day['tanks'] as $tank){
+
+                    $tankInfo = array_first(array_filter($tanksList, function($value) use ($tank){
+                        return $tank['data']['tank_id'] == $value['tank_id'];
+                    }), null);
+                    if(is_null($tankInfo))
+                        continue;
+
+
+                    if(!isset($tanks[$tank['data']['tank_id']])){
+                        $tanks[$tank['data']['tank_id']] =
+                            array(
+                                "battles" => array(
+                                    "total"=>0,
+                                    "init" => $tank['stats']['all']['battles']
+                                ),
+                                "damage_dealt" => array(
+                                    "total"=>0,
+                                    "init" => $tank['stats']['all']['damage_dealt']
+                                ),
+                                "spotted" => array(
+                                    "total"=>0,
+                                    "init" => $tank['stats']['all']['spotted']
+                                ),
+                                "frags" => array(
+                                    "total"=>0,
+                                    "init" => $tank['stats']['all']['frags']
+                                ),
+                                "dropped_capture_points" => array(
+                                    "total"=>0,
+                                    "init" => $tank['stats']['all']['dropped_capture_points']
+                                ),
+                                "wins" => array(
+                                    "total"=>0,
+                                    "init" => $tank['stats']['all']['wins']
+                                ),
+                                "tank_info"=>$tankInfo
+                            );
+                    }else{
+                        $tanks[$tank['data']['tank_id']]['battles']['total'] = $tank['stats']['all']['battles']-$tanks[$tank['data']['tank_id']]['battles']['init'];
+                        $tanks[$tank['data']['tank_id']]['damage_dealt']['total'] = $tank['stats']['all']['damage_dealt']-$tanks[$tank['data']['tank_id']]['damage_dealt']['init'];
+                        $tanks[$tank['data']['tank_id']]['spotted']['total'] = $tank['stats']['all']['spotted']-$tanks[$tank['data']['tank_id']]['spotted']['init'];
+                        $tanks[$tank['data']['tank_id']]['frags']['total'] = $tank['stats']['all']['frags']-$tanks[$tank['data']['tank_id']]['frags']['init'];
+                        $tanks[$tank['data']['tank_id']]['wins']['total'] = $tank['stats']['all']['wins']-$tanks[$tank['data']['tank_id']]['wins']['init'];
+                    }
+                }
+            }
+            //Calculate WN8
+            $tanks = collect($tanks)->map(function($stats, $tankId) use ($expected_tanks){
+                if($stats['battles']['total'] == 0){
+                    return array_merge($stats, ["wn8"=>0, "tank_id"=>$tankId]);
+                }
+
+                $exp = array_first(array_filter($expected_tanks['data'], function($value) use ($tankId){
+                    return $tankId == $value['IDNum'];
+                }));
+
+                // Calculate WN8
+                $rDAMAGE = $stats['damage_dealt']['total'] / ($exp['expDamage'] * $stats['battles']['total']);
+                $rSPOT = $stats['spotted']['total'] / ($exp['expSpot'] * $stats['battles']['total']);
+                $rFRAG = $stats['frags']['total'] / ($exp['expFrag'] * $stats['battles']['total']);
+                $rDEF = $stats['dropped_capture_points']['total'] / ($exp['expDef'] * $stats['battles']['total']);
+                $rWIN = $stats['wins']['total'] / ($exp['expWinRate'] * $stats['battles']['total']);
+
+                $rWINc = max(0, ($rWIN - 0.71) / (1 - 0.71));
+                $rDAMAGEc = max(0, ($rDAMAGE - 0.22) / (1 - 0.22));
+                $rFRAGc = max(0, min($rDAMAGEc + 0.2, ($rFRAG - 0.12) / (1 - 0.12)));
+                $rSPOTc = max(0, min($rDAMAGEc + 0.1, ($rSPOT - 0.38) / (1 - 0.38)));
+                $rDEFc = max(0, min($rDAMAGEc + 0.1, ($rDEF - 0.10) / (1 - 0.10)));
+
+                $wn8 = round(980 * $rDAMAGEc + 210 * $rDAMAGEc * $rFRAGc + 155 * $rFRAGc * $rSPOTc + 75 * $rDEFc * $rFRAGc + 145 * MIN(1.8, $rWINc), 0);
+                return array_merge($stats, ["wn8"=>$wn8, "tank_id"=>$tankId]);
+            })->reject(function($value){
+                return $value["wn8"]==0;
+            })->values();
+            $diff[] = array(
+                "battles"=>$last['info']['statistics']['all']['battles']-$first['info']['statistics']['all']['battles'],
+                "damage_dealt"=>$last['info']['statistics']['all']['damage_dealt']-$first['info']['statistics']['all']['damage_dealt'],
+                "frags"=>$last['info']['statistics']['all']['frags']-$first['info']['statistics']['all']['frags'],
+                "spotted"=>$last['info']['statistics']['all']['spotted']-$first['info']['statistics']['all']['spotted'],
+                "account_id" =>$key,
+                "name"=> $first['info']['nickname'],
+                "tanks" => $tanks
+            );
+        }
+        $diff = collect($diff)->reject(function($data){
+            return $data['battles'] == 0;
+        });
+
+        /*$pdf = PDF::loadView('stats.30d', compact('diff'));
+        return $pdf->download('stats30d.pdf');*/
+        return view('stats.30d', compact('diff'));
+    }
+
+
+    public function getStats(){
+        return "Disabled";
+        //GOP, ELCC, CCREW, RYNO, OE-PT, KINAS, TI7AN, UP-EU, S-D-G, DT-PT
+        $clans = [500150211, 500002273, 500017055, 500065961, 500043734, 500045079, 500072694, 500024010, 500071578, 500041925];
+        $output = [];
+        $clanInfo = $this->api->clanInfo(join(",", $clans));
+        foreach ($clanInfo['data'] as $clanId => $clan){
+            $client = new Client();
+
+            $data = Cache::get("clan_stats_".$clanId, null);
+            if(is_null($data)){
+                $data = collect($clan['members'])->map(function($data) use ($client, $clan){
+                    $res = $client->get('https://stats.tanks.gg/api/ranges/eu/'.$data['account_name']);
+                    if($res->getStatusCode() == 200){
+                        return array_merge( ["clan_id"=> $clan['tag']], json_decode($res->getBody(),1) );
+                    }
+                    return [];
+                })->toArray();
+                Cache::put("clan_stats_".$clanId, $data, 60*24);
+                sleep(5);
+            }
+            $output = array_merge($output,$data);
+        }
+
+        $output = collect($output)
+            ->reject(function($data){
+                return $data['intervals']['30']['wn8'] < 2000 || $data['intervals']['30']['battles'] < 150;
+            })
+            ->sortByDesc(function($data){
+                return (int)$data['intervals']['30']['wn8'];
+            })
+           // ->map(function($data){return collect($data)->only("clan_id", "name", "intervals"); })
+            ->values()
+        ;
+        $countByClan = $output->groupBy('clan_id')->map(function($clan, $key){
+            return $clan->count();
+        })->sort()->reverse();
+
+        $countByWn8 = $output->groupBy(function($data){
+            if($data['intervals']['30']['wn8'] > 2900){
+                return "super_unicorn";
+            }elseif ($data['intervals']['30']['wn8'] > 2450){
+                return "unicorn";
+            }
+            return "great";
+        })->map(function($clan, $key){
+            return $clan->count();
+        })->sort();
+
+        //return view("stats.wn8")->with("output", $output)->with("countByClan", $countByClan)->with("countByWn8", $countByWn8);
+        $pdf = PDF::loadView('stats.wn8', compact('output', 'countByClan', 'countByWn8'));
+        return $pdf->download('stats.pdf');
+
     }
 
 }

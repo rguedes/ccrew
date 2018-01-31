@@ -12,9 +12,11 @@
     ],
     "require": {
         "php": ">=5.6.4",
+        "barryvdh/laravel-dompdf": "^0.8.1",
         "jenssegers/mongodb": "3.2.x",
         "laravel/framework": "5.4.*",
         "laravel/tinker": "~1.0",
+        "maatwebsite/excel": "^2.1",
         "mcaskill/php-array-group-by": "^1.0",
         "riftbit/wotapi": "dev-master"
     },

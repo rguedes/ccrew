@@ -16,6 +16,9 @@ Route::get('/', function () {
 });
 
 Route::get('wot', "WotController@index");
+Route::get('wot/stats', "WotController@getStats");
+Route::get('wot/stats/30d', "WotController@get30D");
+Route::get('wot/stats/zilla', "WotController@getStatsWotzilla");
 Route::get('wot/daily', "WotController@get_daily_stats");
 
 Route::get('wot/{userId}/{tier?}', "WotController@stats");
